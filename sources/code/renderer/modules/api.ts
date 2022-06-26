@@ -25,8 +25,8 @@ export function generateSafeKey () {
  * similar behaviour as the one achieved by the `.getElementsByClassName`
  * method, except it can allow for part of the class names as an input.
  * 
- * This can be extremly useful when trying to tweak the sites whose class names
- * includes some part being randomly generated for each build/version.
+ * This can be extremly useful when trying to tweak the elements whose class
+ * names includes some part being randomly generated for each build/version.
  */
 export function findClass<T extends keyof HTMLElementTagNameMap>(searchString: string, tagName: T) {
     const searchResult = new Set<string>();
@@ -59,4 +59,13 @@ export function sendRequest(method:'POST'|'GET', apiVersion: 6|7|8|9|10, endpoin
             return;
         }
     });    
+}
+
+
+export function navigate(path:string) {
+    // Push new state to history.
+    history.pushState({}, '', path);
+    // "Reload" history so Discord/Chromium can properly handle it.
+    window.addEventListener('popstate', () => history.forward(), {once: true});
+    history.back();
 }

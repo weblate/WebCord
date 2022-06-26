@@ -1,7 +1,7 @@
 {
   "name": "webcord",
   "productName": "WebCord",
-  "version": "3.2.0-pre",
+  "version": "3.3.0",
   "description": "A Discord and Fosscord client made with the Electron API.",
   "main": "app/code/common/main.js",
   "scripts": {
@@ -36,6 +36,7 @@
     "@electron-forge/maker-zip": "^6.0.0-beta.62",
     "@electron-forge/publisher-github": "^6.0.0-beta.62",
     "@electron/fuses": "^1.5.0",
+    "@reforged/maker-appimage": "^1.0.2",
     "@tsconfig/node16-strictest": "^1.0.0",
     "@types/dompurify": "^2.3.3",
     "@types/marked": "^4.0.2",
@@ -46,16 +47,15 @@
     "@typescript-eslint/eslint-plugin": "latest",
     "@typescript-eslint/experimental-utils": "latest",
     "@typescript-eslint/parser": "latest",
-    "electron": "^18.0.1",
-    "electron-forge-maker-appimage": "github:SpacingBat3/electron-forge-maker-appimage",
+    "electron": "^19.0.1",
     "eslint": "latest",
     "eslint-import-resolver-typescript": "latest",
     "eslint-plugin-import": "latest",
     "typescript": "^4.5.2"
   },
   "dependencies": {
+    "@fontsource/fira-code": "^4.5.9",
     "@fontsource/roboto": "^4.5.1",
-    "@fontsource/source-code-pro": "^4.5.1",
     "@fontsource/ubuntu": "^4.5.0",
     "@spacingbat3/kolor": "^2.0.1",
     "deepmerge-ts": "^4.0.0",

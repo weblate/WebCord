@@ -23,8 +23,8 @@
 
 A Discord and [Fosscord] *API-less* client made with the [Electron][electron].
 
-The main reason of the WebCord existence was previously creating a usable ARM
-alternative, but nowadays it's development is more around making it *more open*
+The main reason for the existence of WebCord has previously been to create a usable ARM
+alternative, but nowadays it's development is more focused on making it a *more open*
 alternative to the Discord client, which would be both customisable and
 improving in some aspects like security and privacy. As for now, some tweaks
 around privacy has been implemented:
@@ -35,7 +35,7 @@ around privacy has been implemented:
     by the default,
   - optionally blocking typing indicator (`/typing`).
   
-Please note many features I have plans for hasn't been implemented yet – you can
+Please note many features I have plans for haven't been implemented yet – you can
 find more about that [in this file](Features.md).
 
 WebCord takes a different approach from most clients, as it isn't just a mod of
@@ -64,10 +64,9 @@ his code. Thanks to his work, this project could begin on its own.
 
 ## Documentation:
 
-For the newcommers, I recommend to read at least FAQ (to fix common issues and
-not report them as *bugs*). You may also read features to know what has I claim
-my client to support or have implemented. It is strongly advised to read
-the application license as well.
+For newcomers I recommend to read at least the [FAQ](FAQ.md) (to fix common issues and not report them as *bugs*). 
+You may also read [Features](Features.md) to know which features have been implemented and are supported. 
+It is strongly advised to read the [application license](../LICENSE) as well.
 
 - [List of WebCord's features](Features.md)
 - [Frequently Asked Questions](FAQ.md)
@@ -121,13 +120,9 @@ This project is redistributed under the terms of **[MIT License][license]**:
 
 ## Want to contribute to my project?
 
-- If you want to improve my code, make a Pull Request and add yourself to the 
-  [`contributors`][npm-docs] array in `package.json`.
-
-- If you want to translate strings in `lang` folder, please visit
-  [`Translate.md`](Translate.md).
-
-Never made a pull request before? Please refer to [this website][makepr].
+Please take a look at [`Contributing.md`](./Contributing.md) – it describes more
+about ways of giving your help to improve quality of WebCord. And for some tasks
+you don't even need to be familiar with programming at all!
 
 [badge1]: https://img.shields.io/github/package-json/dependency-version/SpacingBat3/WebCord/dev/electron?color=%236CB2BF&label=Electron
 [badge2]: https://img.shields.io/github/downloads/SpacingBat3/WebCord/total.svg?label=Downloads&color=%236586B3

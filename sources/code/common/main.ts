@@ -61,18 +61,20 @@ console.debug = function (message?:unknown, ...optionalParams:unknown[]) {
         }).catch(commonCatches.print)
     }
 }
-import { app, BrowserWindow, dialog, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, session } from 'electron/main';
+import { shell } from 'electron/common';
 import { promises as fs } from 'fs';
 import { trustedProtocolRegExp, SessionLatest, knownInstancesList } from './global';
 import { checkVersion } from '../main/modules/update';
 import l10n from './modules/l10n';
 import createMainWindow from "../main/windows/main";
 import { AppConfig } from '../main/modules/config';
-import colors from '@spacingbat3/kolor';
+import kolor from '@spacingbat3/kolor';
 import { resolve as resolvePath, relative } from 'path';
 import { major } from "semver";
 import { getUserAgent } from './modules/agent';
 import { getBuildInfo } from '../main/modules/client';
+import { getRecommendedGPUFlags, getRedommendedOSFlags } from '../main/modules/optimize';
 
 // Set global user agent
 app.userAgentFallback = getUserAgent(process.versions.chrome);
@@ -87,7 +89,7 @@ let overwriteMain: (() => void | unknown) | undefined;
     const renderLine = (parameter:string, description:string, length?:number) => {
         // eslint-disable-next-line no-control-regex
         const spaceBetween = (length ?? 30) - parameter.replace(/\x1B\[[^m]+m/g, '').length;
-        return '  '+colors.green(parameter)+' '.repeat(spaceBetween)+colors.gray(description)+'\n'
+        return '  '+kolor.green(parameter)+' '.repeat(spaceBetween)+kolor.gray(description)+'\n'
     }
     const cmd = app.commandLine;
 
@@ -105,15 +107,19 @@ let overwriteMain: (() => void | unknown) | undefined;
         }
     if (cmd.hasSwitch('help') || cmd.hasSwitch('h')) {
         console.log(
-            "\n " + colors.bold(colors.blue(app.getName())) +
-            " – Privacy focused Discord client made with " + colors.bold(colors.white(colors.blueBg("TypeScript"))) + " and " + colors.bold(colors.blackBg(colors.cyan("Electron"))) + '.\n\n' +
-            " " + colors.underscore("Usage:") + " " + colors.red(process.argv0) + colors.green(" [option]\n\n") +
-            " " + colors.underscore("Options:") + "\n" +
+            "\n " + kolor.bold(kolor.blue(app.getName())) +
+            " – Privacy focused Discord client made with " + kolor.bold(kolor.white(kolor.blueBg("TypeScript"))) + " and " + kolor.bold(kolor.blackBg(kolor.cyan("Electron"))) + '.\n\n' +
+            " " + kolor.underscore("Usage:") + " " + kolor.red(process.argv0) + kolor.green(" [option]\n\n") +
+            " " + kolor.underscore("Options:") + "\n" +
             renderLine('--version  -V','Show current application version.')+
             renderLine('--start-minimized  -m','Hide application at first run.') +
-            renderLine('--export-l10n'+ '=' + colors.yellow('{dir}'), 'Export currently loaded translation files from') +
-            " ".repeat(32)+colors.gray("the application to the " + colors.yellow('{dir}') + " directory.\n")+
-            renderLine('--verbose  -v', "Show debug messages.")
+            renderLine('--export-l10n'+ '=' + kolor.yellow('{dir}'), 'Export currently loaded translation files from') +
+            " ".repeat(32)+kolor.gray("the application to the ") + kolor.yellow('{dir}') + kolor.gray(" directory.\n")+
+            renderLine('--verbose  -v', "Show debug messages."),
+            renderLine(
+                '--gpu-info'+ '=' + kolor.yellow('basic') + kolor.blue('|') + kolor.yellow('complete'),
+                "Shows GPU information as JS object."
+            )
         );
         app.exit();
     }
@@ -140,8 +146,8 @@ let overwriteMain: (() => void | unknown) | undefined;
                 app.quit();
             }).catch((err:NodeJS.ErrnoException) => {
                 console.error(
-                    '\n⛔️ ' + colors.red(colors.bold(err.code ?? err.name)) + ' ' + (err.syscall ?? "") + ': ' +
-                        (err.path ? colors.blue(colors.underscore(relative(process.cwd(),err.path))) + ': ' : '') +
+                    '\n⛔️ ' + kolor.red(kolor.bold(err.code ?? err.name)) + ' ' + (err.syscall ?? "") + ': ' +
+                        (err.path ? kolor.blue(kolor.underscore(relative(process.cwd(),err.path))) + ': ' : '') +
                         err.message.replace((err.code ?? '') + ': ', '')
                             .replace(', ' + (err.syscall ?? '') + " '" + (err.path ?? '') + "'", '') + '.\n'
                 );
@@ -149,8 +155,46 @@ let overwriteMain: (() => void | unknown) | undefined;
             });
         };
     }
+    if (cmd.hasSwitch('gpu-info')) {
+        const param = cmd.getSwitchValue('gpu-info')
+        switch(param) {
+            case "basic":
+            case "complete":
+                app.getGPUInfo(param)
+                    .then(info => {
+                        console.log("GPU information object:");
+                        console.dir(info);
+                    })
+                    .then(() => app.exit())
+                    .catch(commonCatches.throw);
+                break;
+            default:
+                throw new Error("Flag 'gpu-info' should contain parameter of type '\"basic\"|\"complete\"'.")
+        }
+    }
 }
+{
+    const applyFlags = (name:string, value?:string) => {
+        if(name === "enable-features" && value !== undefined
+            && app.commandLine.getSwitchValue(name) !== "")
+                value = app.commandLine.getSwitchValue(name)+','+value
+        app.commandLine.appendSwitch(name, value);
+        console.debug("[OPTIMIZE] Applying flag: %s...",'--'+name+(value ? '='+value : ""))
+    }
+    // Apply recommended GPU flags if user has opt for them.
+    if(new AppConfig().get().useRecommendedFlags.gpu)
+        getRecommendedGPUFlags().then(flags => {
+            for(const flag of flags) if(!app.isReady()) {
+                applyFlags(flag[0], flag[1]);
+            } else
+                console.warn("Flag '--"+flag[0]+(flag[1] ? '='+flag[1] : '')+"' won't be assigned to Chromium's cmdline, since app is already 'ready'!")
+        }).catch(error => {
+            console.error(error);
+        })
 
+    for(const flag of getRedommendedOSFlags())
+        applyFlags(flag[0], flag[1]);
+}
 // Some variable declarations
 
 const singleInstance = app.requestSingleInstanceLock();
@@ -159,7 +203,7 @@ let l10nStrings: l10n["client"], updateInterval: NodeJS.Timeout | undefined;
 
 function main(): void {
     if (overwriteMain) {
-        // Execute flag-specific function for ready application.
+        // Execute flag-specific functions for ready application.
         overwriteMain();
     } else {
         // Run app normally

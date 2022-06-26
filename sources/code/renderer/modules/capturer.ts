@@ -1,4 +1,4 @@
-import { ipcRenderer as ipc } from 'electron';
+import { ipcRenderer as ipc } from 'electron/renderer';
 
 interface EMediaStreamConstraints extends MediaStreamConstraints {
     audio?: boolean | EMediaTrackConstraints;
@@ -8,7 +8,7 @@ interface EMediaStreamConstraints extends MediaStreamConstraints {
 interface EMediaTrackConstraints extends MediaTrackConstraints {
     mandatory: {
         chromeMediaSource: string;
-        chromeMediaSourceId: string;
+        chromeMediaSourceId?: string;
     };
 }
 

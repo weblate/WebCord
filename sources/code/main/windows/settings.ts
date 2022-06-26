@@ -31,7 +31,6 @@ function conf2html (config:AppConfig) {
 		['twitch', 'Twitch'],
 		['streamable', 'Streamable'],
 		['vimeo', 'Vimeo'],
-		['funimation', 'Funimation'],
 		['audius', 'Audius'],
 		['soundcloud', 'SoundCloud'],
 		['reddit', 'Reddit']
@@ -100,6 +99,11 @@ function conf2html (config:AppConfig) {
 						label: lang.privacy.group.blockApi.label.typingIndicator,
 						id: 'blockApi.typingIndicator',
 						isChecked: config.get().blockApi.typingIndicator
+					},
+					{
+						label: lang.privacy.group.blockApi.label.fingerprinting,
+						id: 'blockApi.fingerprinting',
+						isChecked: config.get().blockApi.fingerprinting
 					}
 				]
 			},
@@ -180,6 +184,19 @@ function conf2html (config:AppConfig) {
 					id: 'devel',
 					isChecked: config.get().devel
 				}],
+			},
+			{
+				// Developer mode
+				name: lang.advanced.group.optimize.name,
+				description: lang.advanced.group.optimize.description,
+				type: 'checkbox',
+				forms: [
+					{
+						label: lang.advanced.group.optimize.checklist.gpu,
+						id: 'useRecommendedFlags.gpu',
+						isChecked: config.get().useRecommendedFlags.gpu
+					}
+				],
 			}
 		]
 	}

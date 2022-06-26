@@ -2,21 +2,19 @@
  * update – notifications about the updates
  */
 
-import { app, Notification, shell, net } from 'electron';
+import { app, Notification, net } from 'electron/main';
+import { shell } from 'electron/common';
 import { appInfo, getBuildInfo } from './client';
 import fetch from 'electron-fetch';
 import l10n from '../../common/modules/l10n';
 import * as semver from 'semver';
-import colors from '@spacingbat3/kolor';
+import kolor from '@spacingbat3/kolor';
 import { commonCatches } from './error';
 import { AppConfig } from './config';
 
 /**
  * Checks and notifies users about the updates.
- * 
- * @param strings Object containing language strings.
- * @param devel Boolean to detect whenever app is packaged.
- * @param appIcon Path to application icon.
+ *
  * @param updateInterval Object that indentifies currently running interval.
  */
 export async function checkVersion(updateInterval: NodeJS.Timeout | undefined): Promise<void> {
@@ -55,7 +53,7 @@ export async function checkVersion(updateInterval: NodeJS.Timeout | undefined): 
             // If version can't be parsed by semver.
             throw new Error("Couldn't compare versions while doing an update");
     }
-    console.log(colors.bold(colors.blue(strings.dialog.ver.updateBadge)) + ' ' + updateMsg);
+    console.log(kolor.bold(kolor.blue(strings.dialog.ver.updateBadge)) + ' ' + updateMsg);
 
     const updatePopup:Electron.NotificationConstructorOptions = {
         title: app.getName() + ": " + strings.dialog.ver.updateTitle,

@@ -5,11 +5,11 @@ import { nativeImage } from "electron/common";
 import * as getMenu from '../modules/menu';
 import { discordFavicons, knownInstancesList } from '../../common/global';
 import packageJson from '../../common/modules/package';
-import { discordContentSecurityPolicy } from '../modules/csp';
+import { getWebCordCSP } from '../modules/csp';
 import type l10n from "../../common/modules/l10n";
 import { createHash } from 'crypto';
 import { resolve } from "path";
-import colors from '@spacingbat3/kolor';
+import kolor from '@spacingbat3/kolor';
 import { loadChromiumExtensions, loadStyles } from "../modules/extensions";
 import { commonCatches } from "../modules/error";
 
@@ -42,7 +42,11 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
             devTools: true, // Too usefull to be blocked.
             defaultFontFamily: {
                 standard: 'Arial' // `sans-serif` as default font.
-            }
+            },
+            enableWebSQL: false,
+            webgl: configData.get().webgl,
+            safeDialogs: true,
+            autoplayPolicy: "user-gesture-required"
         }
     });
     win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
@@ -51,10 +55,10 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
             void win.loadFile(resolve(app.getAppPath(), 'sources/assets/web/html/404.html'));
         else if (errorCode === -30) {
             // Ignore CSP errors.
-            console.warn(colors.bold('[WARN]')+' A page "'+validatedURL+'" was blocked by CSP.')
+            console.warn(kolor.bold('[WARN]')+' A page "'+validatedURL+'" was blocked by CSP.')
             return;
         }
-        console.error(colors.bold('[ERROR]')+' '+errorDescription+' ('+(errorCode*-1).toString()+')');
+        console.error(kolor.bold('[ERROR]')+' '+errorDescription+' ('+(errorCode*-1).toString()+')');
         const retry = setInterval(() => {
             if (retry && net.isOnline()) {
                 clearInterval(retry);
@@ -76,7 +80,7 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
         if (configData.get().csp.enabled) {
             console.debug("[CSP] Overwritting Discord CSP.");
             headersOverwrite = {
-                'Content-Security-Policy': [discordContentSecurityPolicy]
+                'Content-Security-Policy': [getWebCordCSP().toString()]
             }
         }
         callback({
@@ -90,6 +94,7 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
     win.webContents.session.webRequest.onBeforeRequest(
         {
             urls: [
+                'https://*/cdn-cgi/bm/cv/*/api.js',
                 'https://*/api/*/science',
                 'https://*/api/*/channels/*/typing',
                 'https://*/api/*/track'
@@ -97,16 +102,22 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
         },
         (details, callback) => {
 
-            const configData = (new AppConfig()).get();
-            const cancel = configData.blockApi.science || configData.blockApi.typingIndicator;
+            const configData = (new AppConfig()).get().blockApi;
+            
+            const cancel = configData.science ||
+                configData.typingIndicator ||
+                configData.fingerprinting;
+
             const url = new URL(details.url);
 
             if (cancel) console.debug('[API] Blocking ' + url.pathname);
 
             if (url.pathname.endsWith('/science') || url.pathname.endsWith('/track'))
-                callback({ cancel: configData.blockApi.science });
+                callback({ cancel: configData.science });
             else if (url.pathname.endsWith('/typing'))
-                callback({ cancel: configData.blockApi.typingIndicator });
+                callback({ cancel: configData.typingIndicator });
+            else if (url.pathname.endsWith('/api.js'))
+                callback({ cancel: configData.fingerprinting });
             else
                 callback({ cancel: false });
 
@@ -238,37 +249,17 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
             win.setTitle(app.getName() + ' - ' + title);
     });
 
-    /* Expose "did-stop-loading" event to preloads, it seems to be the most
-     * precise way of watching for the changes within Discord's DOM.
-     */
-    ipcMain.on("cosmetic.load", (event) => {
-        const callback = () => {
-            if(!win.webContents.getURL().startsWith("https:")) return;
-            console.debug("[IPC] Exposing a 'did-stop-loading' event...");
-            event.reply("webContents.did-stop-loading");
-        }
-        win.webContents.once("did-stop-loading", callback);
-        win.webContents.once("did-navigate", () => {
-            win.webContents.removeListener("did-stop-loading", callback);
-        });
-    });
-
-    ipcMain.on("cosmetic.hideElementByClass", (event, cssRule:string) => {
-        void win.webContents.insertCSS(cssRule+':nth-last-child(2) > *, '+cssRule+':nth-last-child(3) > * { display:none; }')
-        event.reply("cosmetic.hideElementByClass");
-    })
-
-    // Animate menu
-    ipcMain.on('cosmetic.sideBarClass', (_event, className:string) => {
-        console.debug("[CSS] Injecting a CSS for sidebar animation...")
-        void win.webContents.insertCSS("."+className+"{ transition: width .1s cubic-bezier(0.4, 0, 0.2, 1);}")
-    });
-
     // Insert custom css styles:
 
     win.webContents.on('did-finish-load', () => {
         if(new URL(win.webContents.getURL()).protocol === "https:") {
             loadStyles(win.webContents)
+                .catch(commonCatches.print);
+            import("fs")
+                .then(fs => fs.promises.readFile)
+                .then(read => read(resolve(app.getAppPath(), "sources/assets/web/css/discord.css")))
+                .then(buffer => buffer.toString())
+                .then(data => win.webContents.insertCSS(data))
                 .catch(commonCatches.print);
         }
     });
@@ -302,7 +293,10 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
         void loadChromiumExtensions(win.webContents.session)
     
     // WebSocket server
-    import('../modules/socket').then((socket) => socket.default(win)).catch(e => {console.error(e)});
+    import('../modules/socket')
+        .then(socket => socket.default)
+        .then(startServer => startServer(win))
+        .catch(commonCatches.print);
 
     // Handle desktopCapturer functionality through experimental BrowserViews
     {
@@ -316,43 +310,62 @@ export default function createMainWindow(startHidden: boolean, l10nStrings: l10n
                 // Fail when client has denied the permission to the capturer.
                 if(!configData.get().permissions["display-capture"])
                     return new Error("Permission denied.")
-                lock = true;
+                lock = !app.commandLine.getSwitchValue("enable-features")
+                    .includes("WebRTCPipeWireCapturer") ||
+                    process.env["XDG_SESSION_TYPE"] !== "wayland" ||
+                    process.platform === "win32";
                 const sources = desktopCapturer.getSources({
-                    types: ["screen", "window"],
-                    fetchWindowIcons: true
+                    types: lock ? ["screen", "window"] : ["screen"],
+                    fetchWindowIcons: lock
                 });
-                const view = new BrowserView({
-                    webPreferences: {
-                        preload: resolve(app.getAppPath(), "app/code/renderer/preload/capturer.js")
-                    }
-                });
-                ipcMain.handleOnce("getDesktopCapturerSources", (event) => {
-                    if(event.sender === view.webContents)
-                        return sources;
-                    else
-                        return null;
-                });
-                const autoResize = () => setImmediate(() => view.setBounds({
-                    ...win.getBounds(),
-                    x:0,
-                    y:0,
-                }));
-                ipcMain.once("closeCapturerView", (_event,data:unknown) => {
-                    win.removeBrowserView(view);
-                    view.webContents.delete();
-                    win.removeListener("resize", autoResize);
-                    resolvePromise(data);
-                    lock = false;
-                })
-                win.setBrowserView(view);
-                void view.webContents.loadFile(resolve(app.getAppPath(), "sources/assets/web/html/capturer.html"));
-                view.webContents.once("did-finish-load", () => {
-                    autoResize();
-                    win.on("resize", autoResize);
-                })
+                if(lock) {
+                    const view = new BrowserView({
+                        webPreferences: {
+                            preload: resolve(app.getAppPath(), "app/code/renderer/preload/capturer.js")
+                        }
+                    });
+                    ipcMain.handleOnce("getDesktopCapturerSources", (event) => {
+                        if(event.sender === view.webContents)
+                            return sources;
+                        else
+                            return null;
+                    });
+                    const autoResize = () => setImmediate(() => view.setBounds({
+                        ...win.getBounds(),
+                        x:0,
+                        y:0,
+                    }));
+                    ipcMain.once("closeCapturerView", (_event,data:unknown) => {
+                        win.removeBrowserView(view);
+                        view.webContents.delete();
+                        win.removeListener("resize", autoResize);
+                        resolvePromise(data);
+                        lock = false;
+                    })
+                    win.setBrowserView(view);
+                    void view.webContents.loadFile(resolve(app.getAppPath(), "sources/assets/web/html/capturer.html"));
+                    view.webContents.once("did-finish-load", () => {
+                        autoResize();
+                        win.on("resize", autoResize);
+                    })
+                } else {
+                    sources.then(sources => resolvePromise({
+                        audio: false,
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: sources[0]?.id
+                            }
+                        }
+                    })).catch(error => console.error(error));
+                }
                 return;
             });
         });
     }
+    ipcMain.on('paste-workaround', () => {
+        console.debug("[Clipboard] Applying workaround to the image...");
+        win.webContents.paste();
+    });
     return win;
 }

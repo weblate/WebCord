@@ -1,14 +1,8 @@
 /*
  * menus – OS native menus (tray menu, context menu, menu bar etc.)
  */
-import {
-	app,
-	Menu,
-	Tray,
-	shell,
-	clipboard,
-	ipcMain
-} from 'electron';
+import { app, Menu, Tray } from 'electron/main';
+import { shell, clipboard } from 'electron/common';
 
 import {
 	getBuildInfo,
@@ -30,28 +24,17 @@ import { commonCatches } from './error';
 const sideBar = new EventEmitter();
 const devel = getBuildInfo().type === 'devel';
 
-ipcMain.once('cosmetic.sideBarClass', (_event, className:string) => {
-	sideBar.on('hide', (contents: Electron.WebContents) => {
-		console.debug("[EVENT] Hiding menu bar...")
-		contents.insertCSS("."+className+"{ width: 0px !important; }").then(cssKey => {
-			sideBar.once('show', () => {
-				console.debug("[EVENT] Showing menu bar...")
-				contents.removeInsertedCSS(cssKey).catch(commonCatches.throw)
-			});
-		}).catch(commonCatches.print)
-	});
+sideBar.on('hide', (contents: Electron.WebContents) => {
+	console.debug("[EVENT] Hiding menu bar...")
+	contents.insertCSS("div[class|=sidebar]{ width: 0px !important; }").then(cssKey => {
+		sideBar.once('show', () => {
+			console.debug("[EVENT] Showing menu bar...")
+			contents.removeInsertedCSS(cssKey).catch(commonCatches.throw)
+		});
+	}).catch(commonCatches.print)
 });
 
 let wantQuit = false;
-
-function paste(contents:Electron.WebContents) {
-	const contentTypes = clipboard.availableFormats().toString();
-	//Workaround: fix pasting the images.
-	if(contentTypes.includes('image/') && contentTypes.includes('text/html'))
-		clipboard.writeImage(clipboard.readImage());
-
-	contents.paste();
-}
 
 // Contex Menu with spell checker
 
@@ -65,7 +48,7 @@ export function context(parent: Electron.BrowserWindow): void {
 			{ 
 				label: strings.context.paste,
 				enabled: clipboard.availableFormats().length !== 0 && params.editFlags.canPaste,
-				click: () => paste(parent.webContents)
+				role: 'paste'
 			},
 			{ type: 'separator' }
 		];
@@ -226,11 +209,7 @@ export function bar(repoLink: string, parent: Electron.BrowserWindow): Electron.
 			{ type: 'separator' },
 			{ label: strings.context.cut, role: 'cut' },
 			{ label: strings.context.copy, role: 'copy' },
-			{ 
-				label: strings.context.paste, accelerator: 'CmdOrCtrl+V',
-				registerAccelerator: false,
-				click: () => paste(parent.webContents)
-			}
+			{ label: strings.context.paste, role: 'paste' }
 		]},
 		// View
 		{

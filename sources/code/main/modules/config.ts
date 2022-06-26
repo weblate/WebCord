@@ -29,13 +29,13 @@ const defaultAppConfig = {
             paypal: true,
             audius: true,
             algolia: true,
-            funimation: true,
             reddit: true
         }
     },
     blockApi: {
         typingIndicator: false,
         science: true,
+        fingerprinting: true
     },
     permissions: {
         "video": false,
@@ -50,7 +50,11 @@ const defaultAppConfig = {
             version: "",
             till: "",
         },
-    }
+    },
+    useRecommendedFlags: {
+        gpu: false
+    },
+    webgl: true
 }
 
 class Config<T> {
